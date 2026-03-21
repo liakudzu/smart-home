@@ -147,3 +147,158 @@ impl SmartHouse {
         }
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // 1. Тесты для SmartThermometer
+    #[test]
+    fn thermometer_constructor_and_temperature() {
+        let t = SmartThermometer::new(23.5);
+        assert_eq!(t.temperature(), 23.5);
+    }
+
+    // 2. Тесты для SmartSocket
+    #[test]
+    fn socket_initial_state() {
+        let s = SmartSocket::new(100.0);
+        assert!(!s.is_on());
+        assert_eq!(s.current_power(), 0.0);
+    }
+
+    #[test]
+    fn socket_turn_on() {
+        let mut s = SmartSocket::new(100.0);
+        s.turn_on();
+        assert!(s.is_on());
+        assert_eq!(s.current_power(), 100.0);
+    }
+
+    #[test]
+    fn socket_turn_off() {
+        let mut s = SmartSocket::new(100.0);
+        s.turn_on();
+        s.turn_off();
+        assert!(!s.is_on());
+        assert_eq!(s.current_power(), 0.0);
+    }
+
+    // 3. Тесты для SmartDevice (проверка вариантов перечисления)
+    #[test]
+    fn device_enum_variants() {
+        let t = SmartDevice::Thermometer(SmartThermometer::new(22.0));
+        let s = SmartDevice::Socket(SmartSocket::new(150.0));
+
+        match t {
+            SmartDevice::Thermometer(therm) => assert_eq!(therm.temperature(), 22.0),
+            _ => panic!("Wrong variant"),
+        }
+
+        match s {
+            SmartDevice::Socket(socket) => assert!(!socket.is_on()),
+            _ => panic!("Wrong variant"),
+        }
+    }
+
+    // 4. Тесты для Room
+    #[test]
+    fn room_get_device() {
+        let t = SmartDevice::Thermometer(SmartThermometer::new(21.0));
+        let s = SmartDevice::Socket(SmartSocket::new(200.0));
+        let room = Room::new(vec![t, s]);
+
+        match room.get_device(0) {
+            SmartDevice::Thermometer(therm) => assert_eq!(therm.temperature(), 21.0),
+            _ => panic!("Expected thermometer"),
+        }
+        match room.get_device(1) {
+            SmartDevice::Socket(socket) => assert!(!socket.is_on()),
+            _ => panic!("Expected socket"),
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "index out of bounds")]
+    fn room_get_device_out_of_bounds() {
+        let room = Room::new(vec![]);
+        room.get_device(0); // должен паниковать
+    }
+
+    #[test]
+    fn room_get_device_mut() {
+        let mut room = Room::new(vec![SmartDevice::Socket(SmartSocket::new(50.0))]);
+        {
+            let dev = room.get_device_mut(0);
+            if let SmartDevice::Socket(s) = dev {
+                s.turn_on();
+            }
+        }
+        // проверяем, что включилось
+        if let SmartDevice::Socket(s) = room.get_device(0) {
+            assert!(s.is_on());
+            assert_eq!(s.current_power(), 50.0);
+        } else {
+            panic!("Not a socket");
+        }
+    }
+
+    // 5. Тесты для SmartHouse
+    #[test]
+    fn house_get_room() {
+        let room1 = Room::new(vec![]);
+        let room2 = Room::new(vec![]);
+        let house = SmartHouse::new(vec![room1, room2]);
+
+        // просто проверяем, что метод не паникует
+        let _r1 = house.get_room(0);
+        let _r2 = house.get_room(1);
+    }
+
+    #[test]
+    #[should_panic]
+    fn house_get_room_out_of_bounds() {
+        let house = SmartHouse::new(vec![]);
+        house.get_room(0);
+    }
+
+    #[test]
+    fn house_get_room_mut() {
+        let mut house = SmartHouse::new(vec![Room::new(vec![])]);
+        let _room_mut = house.get_room_mut(0);
+        // Достаточно того, что метод вернул мутабельную ссылку и не запаниковал.
+        // Если нужно проверить изменение, можно добавить устройство (если есть метод push)
+    }
+
+    // 6. Тест для describe (просто убеждаемся, что метод не паникует)
+    #[test]
+    fn device_describe_no_panic() {
+        let t = SmartDevice::Thermometer(SmartThermometer::new(18.0));
+        let s = SmartDevice::Socket(SmartSocket::new(120.0));
+        t.describe();
+        s.describe();
+        // Если дошли до этой строки, тест пройден
+    }
+
+    // 7. Проверка включения/выключения розетки через мутабельную ссылку в доме
+    #[test]
+    fn turn_off_socket_in_room() {
+        let mut socket = SmartSocket::new(75.0);
+        socket.turn_on();
+        let device = SmartDevice::Socket(socket);
+        let room = Room::new(vec![device]);
+        let mut house = SmartHouse::new(vec![room]);
+
+        // получаем мутабельную ссылку на розетку и выключаем
+        if let SmartDevice::Socket(s) = house.get_room_mut(0).get_device_mut(0) {
+            s.turn_off();
+        }
+
+        // проверяем
+        if let SmartDevice::Socket(s) = house.get_room(0).get_device(0) {
+            assert!(!s.is_on());
+            assert_eq!(s.current_power(), 0.0);
+        } else {
+            panic!("Device is not a socket");
+        }
+    }
+}

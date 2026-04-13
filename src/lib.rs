@@ -1,32 +1,44 @@
-//! Библиотека "Умный дом"
+//! Библиотека "Умный дом" (расширенная версия)
 
-/// Умный термометр.
+use std::collections::HashMap;
+use std::error::Error;
+use std::fmt;
+
+// ==================== Трейт Report ====================
+pub trait Report {
+    fn report(&self) -> String;
+}
+
+// ==================== Умный термометр ====================
+#[derive(Debug, Clone, PartialEq)]
 pub struct SmartThermometer {
     temperature: f64,
 }
 
 impl SmartThermometer {
-    /// Создаёт новый термометр с заданной температурой.
     pub fn new(temperature: f64) -> Self {
         Self { temperature }
     }
 
-    /// Возвращает текущую температуру.
     pub fn temperature(&self) -> f64 {
         self.temperature
     }
 }
 
-/// Умная розетка.
+impl Report for SmartThermometer {
+    fn report(&self) -> String {
+        format!("Термометр: температура = {}°C", self.temperature)
+    }
+}
+
+// ==================== Умная розетка ====================
+#[derive(Debug, Clone, PartialEq)]
 pub struct SmartSocket {
     enabled: bool,
-    /// Потребляемая мощность во включённом состоянии (произвольное число).
     power_when_on: f64,
 }
 
 impl SmartSocket {
-    /// Создаёт новую розетку в выключенном состоянии.
-    /// Можно задать мощность, которая будет возвращаться при включении.
     pub fn new(power_when_on: f64) -> Self {
         Self {
             enabled: false,
@@ -34,23 +46,18 @@ impl SmartSocket {
         }
     }
 
-    /// Включить розетку.
     pub fn turn_on(&mut self) {
         self.enabled = true;
     }
 
-    /// Выключить розетку.
     pub fn turn_off(&mut self) {
         self.enabled = false;
     }
 
-    /// Проверить, включена ли розетка.
     pub fn is_on(&self) -> bool {
         self.enabled
     }
 
-    /// Возвращает текущую потребляемую мощность.
-    /// Если розетка выключена, возвращает 0, иначе заданную мощность.
     pub fn current_power(&self) -> f64 {
         if self.enabled {
             self.power_when_on
@@ -60,245 +67,302 @@ impl SmartSocket {
     }
 }
 
-/// Умное устройство – может быть либо термометром, либо розеткой.
+impl Report for SmartSocket {
+    fn report(&self) -> String {
+        let state = if self.enabled {
+            "включена"
+        } else {
+            "выключена"
+        };
+        format!("Розетка: {}, мощность = {} Вт", state, self.current_power())
+    }
+}
+
+// ==================== Умное устройство (enum) ====================
+#[derive(Debug, Clone, PartialEq)]
 pub enum SmartDevice {
     Thermometer(SmartThermometer),
     Socket(SmartSocket),
 }
 
-impl SmartDevice {
-    /// Выводит в стандартный вывод описание состояния устройства.
-    pub fn describe(&self) {
+impl Report for SmartDevice {
+    fn report(&self) -> String {
         match self {
-            SmartDevice::Thermometer(t) => {
-                println!("Термометр: температура = {}°C", t.temperature());
-            }
-            SmartDevice::Socket(s) => {
-                let state = if s.is_on() { "включена" } else { "выключена" };
-                println!("Розетка: {}, мощность = {} Вт", state, s.current_power());
+            SmartDevice::Thermometer(t) => t.report(),
+            SmartDevice::Socket(s) => s.report(),
+        }
+    }
+}
+
+// Реализация From для преобразования в SmartDevice
+impl From<SmartThermometer> for SmartDevice {
+    fn from(t: SmartThermometer) -> Self {
+        SmartDevice::Thermometer(t)
+    }
+}
+
+impl From<SmartSocket> for SmartDevice {
+    fn from(s: SmartSocket) -> Self {
+        SmartDevice::Socket(s)
+    }
+}
+
+// ==================== Тип ошибки ====================
+#[derive(Debug, Clone, PartialEq)]
+pub enum DeviceLookupError {
+    RoomNotFound(String),
+    DeviceNotFound(String),
+}
+
+impl fmt::Display for DeviceLookupError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DeviceLookupError::RoomNotFound(name) => write!(f, "Комната '{}' не найдена", name),
+            DeviceLookupError::DeviceNotFound(name) => {
+                write!(f, "Устройство '{}' не найдено", name)
             }
         }
     }
 }
 
-/// Комната, содержащая список умных устройств.
+impl Error for DeviceLookupError {}
+
+// ==================== Комната ====================
+#[derive(Debug, Clone, PartialEq)]
 pub struct Room {
-    devices: Vec<SmartDevice>,
+    devices: HashMap<String, SmartDevice>,
 }
 
 impl Room {
-    /// Создаёт новую комнату с заданным списком устройств.
-    pub fn new(devices: Vec<SmartDevice>) -> Self {
+    pub fn new(devices: HashMap<String, SmartDevice>) -> Self {
         Self { devices }
     }
 
-    /// Возвращает ссылку на устройство по индексу.
-    /// Паникует, если индекс вне допустимого диапазона.
-    pub fn get_device(&self, index: usize) -> &SmartDevice {
-        &self.devices[index]
+    // Получить ссылку на устройство по ключу (возвращает Option)
+    pub fn get_device(&self, name: &str) -> Option<&SmartDevice> {
+        self.devices.get(name)
     }
 
-    /// Возвращает мутабельную ссылку на устройство по индексу.
-    /// Паникует, если индекс вне допустимого диапазона.
-    pub fn get_device_mut(&mut self, index: usize) -> &mut SmartDevice {
-        &mut self.devices[index]
+    // Получить мутабельную ссылку на устройство по ключу
+    pub fn get_device_mut(&mut self, name: &str) -> Option<&mut SmartDevice> {
+        self.devices.get_mut(name)
     }
 
-    /// Выводит в стандартный вывод отчёт обо всех устройствах в комнате.
-    pub fn report(&self) {
-        println!("Отчёт по комнате (устройств: {}):", self.devices.len());
-        for (i, device) in self.devices.iter().enumerate() {
-            print!("  [{}] ", i);
-            device.describe();
-        }
+    // Добавить устройство
+    pub fn add_device(&mut self, name: String, device: SmartDevice) {
+        self.devices.insert(name, device);
+    }
+
+    // Удалить устройство
+    pub fn remove_device(&mut self, name: &str) -> Option<SmartDevice> {
+        self.devices.remove(name)
+    }
+
+    // Получить итератор по устройствам (для отчёта)
+    pub fn devices(&self) -> impl Iterator<Item = (&String, &SmartDevice)> {
+        self.devices.iter()
     }
 }
 
-/// Умный дом, содержащий список комнат.
+impl Report for Room {
+    fn report(&self) -> String {
+        let mut s = format!("Комната (устройств: {}):", self.devices.len());
+        for (name, device) in &self.devices {
+            s.push_str(&format!("\n  - {}: {}", name, device.report()));
+        }
+        s
+    }
+}
+
+// ==================== Умный дом ====================
+#[derive(Debug, Clone, PartialEq)]
 pub struct SmartHouse {
-    rooms: Vec<Room>,
+    rooms: HashMap<String, Room>,
 }
 
 impl SmartHouse {
-    /// Создаёт новый дом с заданным списком комнат.
-    pub fn new(rooms: Vec<Room>) -> Self {
+    pub fn new(rooms: HashMap<String, Room>) -> Self {
         Self { rooms }
     }
 
-    /// Возвращает ссылку на комнату по индексу.
-    /// Паникует, если индекс вне допустимого диапазона.
-    pub fn get_room(&self, index: usize) -> &Room {
-        &self.rooms[index]
+    // Получить ссылку на комнату по ключу
+    pub fn get_room(&self, name: &str) -> Option<&Room> {
+        self.rooms.get(name)
     }
 
-    /// Возвращает мутабельную ссылку на комнату по индексу.
-    /// Паникует, если индекс вне допустимого диапазона.
-    pub fn get_room_mut(&mut self, index: usize) -> &mut Room {
-        &mut self.rooms[index]
+    // Получить мутабельную ссылку на комнату по ключу
+    pub fn get_room_mut(&mut self, name: &str) -> Option<&mut Room> {
+        self.rooms.get_mut(name)
     }
 
-    /// Выводит в стандартный вывод отчёт обо всех комнатах в доме.
-    pub fn report(&self) {
-        println!("=== УМНЫЙ ДОМ ===\n");
-        for (i, room) in self.rooms.iter().enumerate() {
-            println!("Комната #{}:", i);
-            room.report();
-            println!();
-        }
+    // Добавить комнату
+    pub fn add_room(&mut self, name: String, room: Room) {
+        self.rooms.insert(name, room);
+    }
+
+    // Удалить комнату
+    pub fn remove_room(&mut self, name: &str) -> Option<Room> {
+        self.rooms.remove(name)
+    }
+
+    // Получить ссылку на устройство по имени комнаты и имени устройства
+    // Возвращает Result, а не Option
+    pub fn get_device(
+        &self,
+        room_name: &str,
+        device_name: &str,
+    ) -> Result<&SmartDevice, DeviceLookupError> {
+        let room = self
+            .rooms
+            .get(room_name)
+            .ok_or_else(|| DeviceLookupError::RoomNotFound(room_name.to_string()))?;
+        room.get_device(device_name)
+            .ok_or_else(|| DeviceLookupError::DeviceNotFound(device_name.to_string()))
+    }
+
+    // Мутабельная версия
+    pub fn get_device_mut(
+        &mut self,
+        room_name: &str,
+        device_name: &str,
+    ) -> Result<&mut SmartDevice, DeviceLookupError> {
+        let room = self
+            .rooms
+            .get_mut(room_name)
+            .ok_or_else(|| DeviceLookupError::RoomNotFound(room_name.to_string()))?;
+        room.get_device_mut(device_name)
+            .ok_or_else(|| DeviceLookupError::DeviceNotFound(device_name.to_string()))
     }
 }
+
+impl Report for SmartHouse {
+    fn report(&self) -> String {
+        let mut s = String::from("=== УМНЫЙ ДОМ ===\n");
+        for (name, room) in &self.rooms {
+            s.push_str(&format!("\nКомната '{}':\n", name));
+            s.push_str(&room.report());
+            s.push('\n');
+        }
+        s
+    }
+}
+
+// ==================== Макрос для создания комнаты ====================
+#[macro_export]
+macro_rules! room {
+    ($($key:expr => $device:expr),* $(,)?) => {{
+        let mut map = std::collections::HashMap::new();
+        $(
+            map.insert($key.into(), $device.into());
+        )*
+        $crate::Room::new(map)
+    }};
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // 1. Тесты для SmartThermometer
     #[test]
-    fn thermometer_constructor_and_temperature() {
-        let t = SmartThermometer::new(23.5);
-        assert_eq!(t.temperature(), 23.5);
+    fn test_thermometer() {
+        let t = SmartThermometer::new(20.0);
+        assert_eq!(t.temperature(), 20.0);
+        assert_eq!(t.report(), "Термометр: температура = 20°C");
     }
 
-    // 2. Тесты для SmartSocket
     #[test]
-    fn socket_initial_state() {
-        let s = SmartSocket::new(100.0);
+    fn test_socket() {
+        let mut s = SmartSocket::new(100.0);
         assert!(!s.is_on());
         assert_eq!(s.current_power(), 0.0);
-    }
-
-    #[test]
-    fn socket_turn_on() {
-        let mut s = SmartSocket::new(100.0);
         s.turn_on();
         assert!(s.is_on());
         assert_eq!(s.current_power(), 100.0);
-    }
-
-    #[test]
-    fn socket_turn_off() {
-        let mut s = SmartSocket::new(100.0);
-        s.turn_on();
+        assert_eq!(s.report(), "Розетка: включена, мощность = 100 Вт");
         s.turn_off();
-        assert!(!s.is_on());
-        assert_eq!(s.current_power(), 0.0);
+        assert_eq!(s.report(), "Розетка: выключена, мощность = 0 Вт");
     }
 
-    // 3. Тесты для SmartDevice (проверка вариантов перечисления)
     #[test]
-    fn device_enum_variants() {
-        let t = SmartDevice::Thermometer(SmartThermometer::new(22.0));
-        let s = SmartDevice::Socket(SmartSocket::new(150.0));
+    fn test_room_operations() {
+        let mut room = Room::new(HashMap::new());
+        room.add_device("dev1".to_string(), SmartThermometer::new(25.0).into());
+        assert!(room.get_device("dev1").is_some());
+        assert!(room.get_device("dev2").is_none());
+        let removed = room.remove_device("dev1");
+        assert!(removed.is_some());
+        assert!(room.get_device("dev1").is_none());
+    }
 
-        match t {
-            SmartDevice::Thermometer(therm) => assert_eq!(therm.temperature(), 22.0),
-            _ => panic!("Wrong variant"),
+    #[test]
+    fn test_house_operations() {
+        let mut house = SmartHouse::new(HashMap::new());
+        let room = Room::new(HashMap::new());
+        house.add_room("room1".to_string(), room);
+        assert!(house.get_room("room1").is_some());
+        assert!(house.get_room("room2").is_none());
+
+        house.remove_room("room1");
+        assert!(house.get_room("room1").is_none());
+    }
+
+    #[test]
+    fn test_get_device_result() {
+        let mut room = Room::new(HashMap::new());
+        room.add_device("socket".to_string(), SmartSocket::new(50.0).into());
+        let mut rooms = HashMap::new();
+        rooms.insert("living".to_string(), room);
+        let house = SmartHouse::new(rooms);
+
+        assert!(house.get_device("living", "socket").is_ok());
+        assert!(matches!(
+            house.get_device("living", "unknown"),
+            Err(DeviceLookupError::DeviceNotFound(_))
+        ));
+        assert!(matches!(
+            house.get_device("unknown", "socket"),
+            Err(DeviceLookupError::RoomNotFound(_))
+        ));
+    }
+
+    #[test]
+    fn test_macro() {
+        let room = room! {
+            "t" => SmartThermometer::new(30.0),
+            "s" => SmartSocket::new(200.0),
+        };
+        assert!(room.get_device("t").is_some());
+        assert!(room.get_device("s").is_some());
+        assert_eq!(room.devices().count(), 2);
+    }
+
+    #[test]
+    fn test_from_traits() {
+        let t = SmartThermometer::new(15.0);
+        let dev: SmartDevice = t.into();
+        match dev {
+            SmartDevice::Thermometer(therm) => assert_eq!(therm.temperature(), 15.0),
+            _ => panic!("wrong type"),
         }
 
-        match s {
-            SmartDevice::Socket(socket) => assert!(!socket.is_on()),
-            _ => panic!("Wrong variant"),
-        }
-    }
-
-    // 4. Тесты для Room
-    #[test]
-    fn room_get_device() {
-        let t = SmartDevice::Thermometer(SmartThermometer::new(21.0));
-        let s = SmartDevice::Socket(SmartSocket::new(200.0));
-        let room = Room::new(vec![t, s]);
-
-        match room.get_device(0) {
-            SmartDevice::Thermometer(therm) => assert_eq!(therm.temperature(), 21.0),
-            _ => panic!("Expected thermometer"),
-        }
-        match room.get_device(1) {
-            SmartDevice::Socket(socket) => assert!(!socket.is_on()),
-            _ => panic!("Expected socket"),
+        let s = SmartSocket::new(300.0);
+        let dev: SmartDevice = s.into();
+        match dev {
+            SmartDevice::Socket(sock) => assert!(!sock.is_on()),
+            _ => panic!("wrong type"),
         }
     }
 
     #[test]
-    #[should_panic(expected = "index out of bounds")]
-    fn room_get_device_out_of_bounds() {
-        let room = Room::new(vec![]);
-        room.get_device(0); // должен паниковать
-    }
-
-    #[test]
-    fn room_get_device_mut() {
-        let mut room = Room::new(vec![SmartDevice::Socket(SmartSocket::new(50.0))]);
-        {
-            let dev = room.get_device_mut(0);
-            if let SmartDevice::Socket(s) = dev {
-                s.turn_on();
-            }
-        }
-        // проверяем, что включилось
-        if let SmartDevice::Socket(s) = room.get_device(0) {
-            assert!(s.is_on());
-            assert_eq!(s.current_power(), 50.0);
-        } else {
-            panic!("Not a socket");
-        }
-    }
-
-    // 5. Тесты для SmartHouse
-    #[test]
-    fn house_get_room() {
-        let room1 = Room::new(vec![]);
-        let room2 = Room::new(vec![]);
-        let house = SmartHouse::new(vec![room1, room2]);
-
-        // просто проверяем, что метод не паникует
-        let _r1 = house.get_room(0);
-        let _r2 = house.get_room(1);
-    }
-
-    #[test]
-    #[should_panic]
-    fn house_get_room_out_of_bounds() {
-        let house = SmartHouse::new(vec![]);
-        house.get_room(0);
-    }
-
-    #[test]
-    fn house_get_room_mut() {
-        let mut house = SmartHouse::new(vec![Room::new(vec![])]);
-        let _room_mut = house.get_room_mut(0);
-        // Достаточно того, что метод вернул мутабельную ссылку и не запаниковал.
-        // Если нужно проверить изменение, можно добавить устройство (если есть метод push)
-    }
-
-    // 6. Тест для describe (просто убеждаемся, что метод не паникует)
-    #[test]
-    fn device_describe_no_panic() {
-        let t = SmartDevice::Thermometer(SmartThermometer::new(18.0));
-        let s = SmartDevice::Socket(SmartSocket::new(120.0));
-        t.describe();
-        s.describe();
-        // Если дошли до этой строки, тест пройден
-    }
-
-    // 7. Проверка включения/выключения розетки через мутабельную ссылку в доме
-    #[test]
-    fn turn_off_socket_in_room() {
-        let mut socket = SmartSocket::new(75.0);
-        socket.turn_on();
-        let device = SmartDevice::Socket(socket);
-        let room = Room::new(vec![device]);
-        let mut house = SmartHouse::new(vec![room]);
-
-        // получаем мутабельную ссылку на розетку и выключаем
-        if let SmartDevice::Socket(s) = house.get_room_mut(0).get_device_mut(0) {
-            s.turn_off();
-        }
-
-        // проверяем
-        if let SmartDevice::Socket(s) = house.get_room(0).get_device(0) {
-            assert!(!s.is_on());
-            assert_eq!(s.current_power(), 0.0);
-        } else {
-            panic!("Device is not a socket");
-        }
+    fn test_debug() {
+        let t = SmartThermometer::new(10.0);
+        let debug_str = format!("{:?}", t);
+        assert!(debug_str.contains("10"));
+        let s = SmartSocket::new(50.0);
+        let debug_str = format!("{:?}", s);
+        assert!(debug_str.contains("50"));
+        let room = room! {"dev" => t};
+        let debug_str = format!("{:?}", room);
+        assert!(debug_str.contains("dev"));
     }
 }

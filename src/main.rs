@@ -1,11 +1,13 @@
-use smart_home::{Report, SmartHouse, SmartSocket, SmartThermometer, room};
+use smart_home::{room, Report, SmartHouse, SmartSocket, SmartThermometer};
 use std::collections::HashMap;
 
 fn main() {
     // 1. Создаём устройства
     let thermometer = SmartThermometer::new(22.5);
-    let socket1 = SmartSocket::new(150.0);
-    let socket2 = SmartSocket::new(75.0);
+    let mut socket1 = SmartSocket::new(150.0);
+    socket1.turn_on();
+    let mut socket2 = SmartSocket::new(75.0);
+    socket2.turn_on();
 
     // 2. Создаём комнаты с помощью макроса
     let living_room = room! {
@@ -26,7 +28,11 @@ fn main() {
     print_report(&house);
     println!("\n--- Добавляем новую комнату ---");
     let office = room! {
-        "lamp_socket" => SmartSocket::new(40.0),
+        "lamp_socket" => {
+            let mut socket = SmartSocket::new(40.0);
+            socket.turn_on();
+            socket
+        },
         "temp" => SmartThermometer::new(21.0),
     };
     house.add_room("office".to_string(), office);
@@ -34,7 +40,9 @@ fn main() {
 
     println!("\n--- Добавляем устройство в существующую комнату ---");
     if let Some(living) = house.get_room_mut("living") {
-        living.add_device("extra_socket".to_string(), SmartSocket::new(100.0).into());
+        let mut socket = SmartSocket::new(100.0);
+        socket.turn_on();
+        living.add_device("extra_socket".to_string(), socket.into());
     }
     print_report(&house);
 
@@ -56,7 +64,8 @@ fn main() {
     }
 
     println!("\n--- Демонстрация работы с отчётом для отдельных объектов ---");
-    let some_socket = SmartSocket::new(200.0);
+    let mut some_socket = SmartSocket::new(200.0);
+    some_socket.turn_on();
     print_report(&some_socket);
     let some_thermometer = SmartThermometer::new(18.0);
     print_report(&some_thermometer);

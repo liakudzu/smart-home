@@ -49,6 +49,8 @@ cargo run --bin demo
 - `thermometer_emulator` отправляет температуру на адрес из `thermometer.conf`;
 - `demo` подключается к обоим эмуляторам, включает и выключает розетку и выводит текущее значение температуры.
 
+Примечание по адресам и портам: файл `thermometer.conf` по умолчанию содержит адрес `127.0.0.1:8888`, а пример запуска `socket_emulator` выше использует `127.0.0.1:1234`. Убедитесь, что адреса и порты, на которых вы запускаете эмитаторы, совпадают с настройками в `thermometer.conf` и в `src/bin/demo.rs`.
+
 ## Проверка проекта
 
 Проверка сборки:
@@ -80,3 +82,26 @@ cargo run --example builder_demo
 ```
 
 Примечание: метод `ReportBuilder::add` был переименован в `add_report`. При использовании старого имени может возникнуть несовместимость в примерах.
+
+## Пример: билдер `SmartHouseBuilder`
+
+Ниже небольшой пример использования типестейт‑билдера для пошаговой сборки `SmartHouse`.
+
+```rust
+use smart_home::{smart_house_builder::SmartHouseBuilder, SmartSocket, SmartThermometer, SmartDevice};
+
+let house = SmartHouseBuilder::new()
+	.add_room("Living Room")
+	.add_device("Main Socket", SmartSocket::new(150.0).into())
+	.add_device("Thermometer", SmartThermometer::new(22.5).into())
+	.add_room("Bedroom")
+	.add_device("Lamp", SmartSocket::new(75.0).into())
+	.build();
+
+println!("{}", house.report());
+```
+
+Коротко о механике:
+- Билдер параметризован состоянием (`NoRoomsYet` / `HasRooms`) — это предотвращает вызов `add_device` до того, как добавлена хотя бы одна комната.
+- Метод `add_room` переводит билдер в состояние `HasRooms` и возвращает билдер с возможностью добавлять устройства.
+- `add_device` добавляет устройство в последнюю добавленную комнату (`current_room`).

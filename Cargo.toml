@@ -24,4 +24,7 @@ anyhow = "1.0"
 rand = "0.10"
 crossbeam = "0.8"
 
+# Асинхронная runtime для эмуляторов (net)
+tokio = { version = "1", features = ["net", "rt-multi-thread", "macros", "time", "io-util", "sync"] }
+
 # Примеры не требуют дополнительных зависимостей

@@ -263,7 +263,7 @@ macro_rules! room {
 pub mod network {
     //! Сетевые умные устройства для взаимодействия с имитаторами
     use std::error::Error;
-    use std::io::{Read, Write};
+    use std::io::{BufRead, BufReader, Write};
     use std::net::{TcpStream, UdpSocket};
     use std::sync::mpsc;
     use std::thread;
@@ -285,9 +285,10 @@ pub mod network {
         fn send_command(&mut self, cmd: &str) -> Result<String, Box<dyn Error>> {
             self.stream.write_all(cmd.as_bytes())?;
             self.stream.write_all(b"\n")?;
-            let mut buf = [0u8; 1024];
-            let n = self.stream.read(&mut buf)?;
-            Ok(String::from_utf8_lossy(&buf[..n]).trim().to_string())
+            let mut reader = BufReader::new(self.stream.try_clone()?);
+            let mut resp = String::new();
+            reader.read_line(&mut resp)?;
+            Ok(resp.trim().to_string())
         }
 
         pub fn turn_on(&mut self) -> Result<(), Box<dyn Error>> {
@@ -323,25 +324,42 @@ pub mod network {
     pub struct NetworkSmartThermometer {
         receiver: mpsc::Receiver<f64>,
         _handle: thread::JoinHandle<()>,
+        stop_flag: std::sync::Arc<std::sync::atomic::AtomicBool>,
     }
 
     impl NetworkSmartThermometer {
         /// Привязывается к локальному адресу для приёма UDP-пакетов
         pub fn bind(addr: &str) -> Result<Self, Box<dyn Error>> {
             let socket = UdpSocket::bind(addr)?;
+            socket.set_nonblocking(true)?;
             let (tx, rx) = mpsc::channel();
+            let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let stop_clone = stop.clone();
             let handle = thread::spawn(move || {
                 let mut buf = [0u8; 1024];
-                while let Ok((size, _)) = socket.recv_from(&mut buf) {
-                    let data = String::from_utf8_lossy(&buf[..size]);
-                    if let Ok(temp) = data.trim().parse::<f64>() {
-                        let _ = tx.send(temp);
+                while !stop_clone.load(std::sync::atomic::Ordering::Relaxed) {
+                    match socket.recv_from(&mut buf) {
+                        Ok((size, _)) => {
+                            let data = String::from_utf8_lossy(&buf[..size]);
+                            if let Ok(temp) = data.trim().parse::<f64>() {
+                                let _ = tx.send(temp);
+                            }
+                        }
+                        Err(e) => {
+                            if e.kind() == std::io::ErrorKind::WouldBlock {
+                                std::thread::sleep(Duration::from_millis(10));
+                                continue;
+                            } else {
+                                break;
+                            }
+                        }
                     }
                 }
             });
             Ok(NetworkSmartThermometer {
                 receiver: rx,
                 _handle: handle,
+                stop_flag: stop,
             })
         }
 
@@ -349,13 +367,23 @@ pub mod network {
         pub fn get_temperature(&mut self) -> Result<f64, Box<dyn Error>> {
             // Пропускаем все накопленные значения, оставляем только последнее
             while self.receiver.try_recv().is_ok() {}
-            match self.receiver.recv_timeout(Duration::from_millis(100)) {
+            match self.receiver.recv_timeout(Duration::from_millis(1000)) {
                 Ok(temp) => Ok(temp),
                 Err(mpsc::RecvTimeoutError::Timeout) => {
                     Err("Данные о температуре не получены".into())
                 }
                 Err(_) => Err("Канал закрыт".into()),
             }
+        }
+    }
+
+    impl Drop for NetworkSmartThermometer {
+        fn drop(&mut self) {
+            self.stop_flag
+                .store(true, std::sync::atomic::Ordering::Relaxed);
+            // try join the thread (best-effort)
+            let old = std::mem::replace(&mut self._handle, std::thread::spawn(|| {}));
+            let _ = old.join();
         }
     }
 }

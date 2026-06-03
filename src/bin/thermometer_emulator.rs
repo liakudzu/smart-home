@@ -1,11 +1,10 @@
-use rand::RngExt;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::net::UdpSocket;
-use std::thread;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tokio::net::UdpSocket;
 
-fn main() {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     let config = match File::open("thermometer.conf") {
         Ok(f) => f,
         Err(_) => {
@@ -23,19 +22,27 @@ fn main() {
     }
     let target_addr = &lines[0];
     let period_ms: u64 = lines[1].parse().expect("Invalid period");
-    let socket = UdpSocket::bind("0.0.0.0:0").expect("Failed to bind UDP socket");
-    let mut rng = rand::rng();
 
+    let socket = UdpSocket::bind("0.0.0.0:0").await?;
+
+    let mut seed = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos() as u64;
     println!(
         "Thermometer emulator started. Sending to {} every {} ms",
         target_addr, period_ms
     );
+
     loop {
-        let temp = rng.random_range(-30.0..30.0);
+        // simple LCG for emulator randomness
+        seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+        let frac = seed as f64 / u64::MAX as f64;
+        let temp = -30.0 + frac * 60.0;
         let msg = format!("{:.2}", temp);
-        if let Err(e) = socket.send_to(msg.as_bytes(), target_addr) {
+        if let Err(e) = socket.send_to(msg.as_bytes(), target_addr).await {
             eprintln!("Failed to send: {}", e);
         }
-        thread::sleep(Duration::from_millis(period_ms));
+        tokio::time::sleep(Duration::from_millis(period_ms)).await;
     }
 }

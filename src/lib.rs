@@ -4,56 +4,13 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
 
+// ==================== Трейт Report ====================
 pub trait Report {
     fn report(&self) -> String;
 }
 
-#[derive(Debug, Clone)]
-pub struct SmartSocket {
-    power: f64,
-    is_on: bool,
-}
-
-impl SmartSocket {
-    pub fn new(power: f64) -> Self {
-        Self {
-            power,
-            is_on: false,
-        }
-    }
-
-    pub fn turn_on(&mut self) {
-        self.is_on = true;
-    }
-
-    pub fn turn_off(&mut self) {
-        self.is_on = false;
-    }
-
-    pub fn is_on(&self) -> bool {
-        self.is_on
-    }
-
-    pub fn current_power(&self) -> f64 {
-        if self.is_on {
-            self.power
-        } else {
-            0.0
-        }
-    }
-}
-
-impl Report for SmartSocket {
-    fn report(&self) -> String {
-        format!(
-            "Smart socket: state={}, power={} W",
-            if self.is_on { "on" } else { "off" },
-            self.current_power()
-        )
-    }
-}
-
-#[derive(Debug, Clone)]
+// ==================== Умный термометр ====================
+#[derive(Debug, Clone, PartialEq)]
 pub struct SmartThermometer {
     temperature: f64,
 }
@@ -66,46 +23,112 @@ impl SmartThermometer {
     pub fn temperature(&self) -> f64 {
         self.temperature
     }
-
-    pub fn set_temperature(&mut self, temperature: f64) {
-        self.temperature = temperature;
-    }
 }
 
 impl Report for SmartThermometer {
     fn report(&self) -> String {
-        format!("Smart thermometer: {:.1} C", self.temperature)
+        format!("Термометр: температура = {}°C", self.temperature)
     }
 }
 
-#[derive(Debug, Clone)]
+// ==================== Умная розетка ====================
+#[derive(Debug, Clone, PartialEq)]
+pub struct SmartSocket {
+    enabled: bool,
+    power_when_on: f64,
+}
+
+impl SmartSocket {
+    pub fn new(power_when_on: f64) -> Self {
+        Self {
+            enabled: false,
+            power_when_on,
+        }
+    }
+
+    pub fn turn_on(&mut self) {
+        self.enabled = true;
+    }
+
+    pub fn turn_off(&mut self) {
+        self.enabled = false;
+    }
+
+    pub fn is_on(&self) -> bool {
+        self.enabled
+    }
+
+    pub fn current_power(&self) -> f64 {
+        if self.enabled {
+            self.power_when_on
+        } else {
+            0.0
+        }
+    }
+}
+
+impl Report for SmartSocket {
+    fn report(&self) -> String {
+        let state = if self.enabled {
+            "включена"
+        } else {
+            "выключена"
+        };
+        format!("Розетка: {}, мощность = {} Вт", state, self.current_power())
+    }
+}
+
+// ==================== Умное устройство (enum) ====================
+#[derive(Debug, Clone, PartialEq)]
 pub enum SmartDevice {
-    Socket(SmartSocket),
     Thermometer(SmartThermometer),
+    Socket(SmartSocket),
 }
 
 impl Report for SmartDevice {
     fn report(&self) -> String {
         match self {
-            SmartDevice::Socket(device) => device.report(),
-            SmartDevice::Thermometer(device) => device.report(),
+            SmartDevice::Thermometer(t) => t.report(),
+            SmartDevice::Socket(s) => s.report(),
         }
     }
 }
 
-impl From<SmartSocket> for SmartDevice {
-    fn from(value: SmartSocket) -> Self {
-        SmartDevice::Socket(value)
-    }
-}
-
+// Реализация From для преобразования в SmartDevice
 impl From<SmartThermometer> for SmartDevice {
-    fn from(value: SmartThermometer) -> Self {
-        SmartDevice::Thermometer(value)
+    fn from(t: SmartThermometer) -> Self {
+        SmartDevice::Thermometer(t)
     }
 }
 
-#[derive(Debug, Clone, Default)]
+impl From<SmartSocket> for SmartDevice {
+    fn from(s: SmartSocket) -> Self {
+        SmartDevice::Socket(s)
+    }
+}
+
+// ==================== Тип ошибки ====================
+#[derive(Debug, Clone, PartialEq)]
+pub enum DeviceLookupError {
+    RoomNotFound(String),
+    DeviceNotFound(String),
+}
+
+impl fmt::Display for DeviceLookupError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DeviceLookupError::RoomNotFound(name) => write!(f, "Комната '{}' не найдена", name),
+            DeviceLookupError::DeviceNotFound(name) => {
+                write!(f, "Устройство '{}' не найдено", name)
+            }
+        }
+    }
+}
+
+impl Error for DeviceLookupError {}
+
+// ==================== Комната ====================
+#[derive(Debug, Clone, PartialEq)]
 pub struct Room {
     devices: HashMap<String, SmartDevice>,
 }
@@ -115,30 +138,44 @@ impl Room {
         Self { devices }
     }
 
-    pub fn add_device(&mut self, name: String, device: SmartDevice) -> Option<SmartDevice> {
-        self.devices.insert(name, device)
+    // Получить ссылку на устройство по ключу (возвращает Option)
+    pub fn get_device(&self, name: &str) -> Option<&SmartDevice> {
+        self.devices.get(name)
     }
 
+    // Получить мутабельную ссылку на устройство по ключу
+    pub fn get_device_mut(&mut self, name: &str) -> Option<&mut SmartDevice> {
+        self.devices.get_mut(name)
+    }
+
+    // Добавить устройство
+    pub fn add_device(&mut self, name: String, device: SmartDevice) {
+        self.devices.insert(name, device);
+    }
+
+    // Удалить устройство
     pub fn remove_device(&mut self, name: &str) -> Option<SmartDevice> {
         self.devices.remove(name)
     }
 
-    pub fn get_device(&self, name: &str) -> Option<&SmartDevice> {
-        self.devices.get(name)
+    // Получить итератор по устройствам (для отчёта)
+    pub fn devices(&self) -> impl Iterator<Item = (&String, &SmartDevice)> {
+        self.devices.iter()
     }
 }
 
 impl Report for Room {
     fn report(&self) -> String {
-        let mut lines = vec![format!("Room devices: {}", self.devices.len())];
+        let mut s = format!("Комната (устройств: {}):", self.devices.len());
         for (name, device) in &self.devices {
-            lines.push(format!("- {}: {}", name, device.report()));
+            s.push_str(&format!("\n  - {}: {}", name, device.report()));
         }
-        lines.join("\n")
+        s
     }
 }
 
-#[derive(Debug, Clone)]
+// ==================== Умный дом ====================
+#[derive(Debug, Clone, PartialEq)]
 pub struct SmartHouse {
     rooms: HashMap<String, Room>,
 }
@@ -148,78 +185,85 @@ impl SmartHouse {
         Self { rooms }
     }
 
-    pub fn add_room(&mut self, name: String, room: Room) -> Option<Room> {
-        self.rooms.insert(name, room)
+    // Получить ссылку на комнату по ключу
+    pub fn get_room(&self, name: &str) -> Option<&Room> {
+        self.rooms.get(name)
     }
 
+    // Получить мутабельную ссылку на комнату по ключу
     pub fn get_room_mut(&mut self, name: &str) -> Option<&mut Room> {
         self.rooms.get_mut(name)
     }
 
+    // Добавить комнату
+    pub fn add_room(&mut self, name: String, room: Room) {
+        self.rooms.insert(name, room);
+    }
+
+    // Удалить комнату
+    pub fn remove_room(&mut self, name: &str) -> Option<Room> {
+        self.rooms.remove(name)
+    }
+
+    // Получить ссылку на устройство по имени комнаты и имени устройства
+    // Возвращает Result, а не Option
     pub fn get_device(
         &self,
         room_name: &str,
         device_name: &str,
-    ) -> Result<&SmartDevice, SmartHouseError> {
+    ) -> Result<&SmartDevice, DeviceLookupError> {
         let room = self
             .rooms
             .get(room_name)
-            .ok_or_else(|| SmartHouseError::RoomNotFound(room_name.to_string()))?;
-
+            .ok_or_else(|| DeviceLookupError::RoomNotFound(room_name.to_string()))?;
         room.get_device(device_name)
-            .ok_or_else(|| SmartHouseError::DeviceNotFound {
-                room: room_name.to_string(),
-                device: device_name.to_string(),
-            })
+            .ok_or_else(|| DeviceLookupError::DeviceNotFound(device_name.to_string()))
+    }
+
+    // Мутабельная версия
+    pub fn get_device_mut(
+        &mut self,
+        room_name: &str,
+        device_name: &str,
+    ) -> Result<&mut SmartDevice, DeviceLookupError> {
+        let room = self
+            .rooms
+            .get_mut(room_name)
+            .ok_or_else(|| DeviceLookupError::RoomNotFound(room_name.to_string()))?;
+        room.get_device_mut(device_name)
+            .ok_or_else(|| DeviceLookupError::DeviceNotFound(device_name.to_string()))
     }
 }
 
 impl Report for SmartHouse {
     fn report(&self) -> String {
-        let mut lines = vec![format!("Smart house rooms: {}", self.rooms.len())];
+        let mut s = String::from("=== УМНЫЙ ДОМ ===\n");
         for (name, room) in &self.rooms {
-            lines.push(format!("{}:\n{}", name, room.report()));
+            s.push_str(&format!("\nКомната '{}':\n", name));
+            s.push_str(&room.report());
+            s.push('\n');
         }
-        lines.join("\n")
+        s
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SmartHouseError {
-    RoomNotFound(String),
-    DeviceNotFound { room: String, device: String },
-}
-
-impl fmt::Display for SmartHouseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            SmartHouseError::RoomNotFound(room) => write!(f, "room '{}' not found", room),
-            SmartHouseError::DeviceNotFound { room, device } => {
-                write!(f, "device '{}' not found in room '{}'", device, room)
-            }
-        }
-    }
-}
-
-impl Error for SmartHouseError {}
-
+// ==================== Макрос для создания комнаты ====================
 #[macro_export]
 macro_rules! room {
-    ($($name:expr => $device:expr),* $(,)?) => {{
-        let mut devices = ::std::collections::HashMap::new();
+    ($($key:expr => $device:expr),* $(,)?) => {{
+        let mut map = std::collections::HashMap::new();
         $(
-            devices.insert($name.to_string(), $crate::SmartDevice::from($device));
+            map.insert($key.into(), $device.into());
         )*
-        $crate::Room::new(devices)
+        $crate::Room::new(map)
     }};
 }
 
-// Конец старого кода. Далее добавляем новый модуль network.
-
+// ==================== Модуль network (имитаторы и сетевые устройства) ====================
 pub mod network {
     //! Сетевые умные устройства для взаимодействия с имитаторами
     use std::error::Error;
-    use std::io::{BufRead, BufReader, Write};
+    use std::io::{Read, Write};
     use std::net::{TcpStream, UdpSocket};
     use std::sync::mpsc;
     use std::thread;
@@ -228,7 +272,6 @@ pub mod network {
     /// Умная розетка, управляемая по TCP
     pub struct NetworkSmartSocket {
         stream: TcpStream,
-        reader: BufReader<TcpStream>,
     }
 
     impl NetworkSmartSocket {
@@ -236,21 +279,15 @@ pub mod network {
             let stream = TcpStream::connect(addr)?;
             stream.set_read_timeout(Some(Duration::from_secs(1)))?;
             stream.set_write_timeout(Some(Duration::from_secs(1)))?;
-            let reader_stream = stream.try_clone()?;
-            Ok(NetworkSmartSocket {
-                stream,
-                reader: BufReader::new(reader_stream),
-            })
+            Ok(NetworkSmartSocket { stream })
         }
 
         fn send_command(&mut self, cmd: &str) -> Result<String, Box<dyn Error>> {
             self.stream.write_all(cmd.as_bytes())?;
             self.stream.write_all(b"\n")?;
-            self.stream.flush()?;
-
-            let mut response = String::new();
-            self.reader.read_line(&mut response)?;
-            Ok(response.trim().to_string())
+            let mut buf = [0u8; 1024];
+            let n = self.stream.read(&mut buf)?;
+            Ok(String::from_utf8_lossy(&buf[..n]).trim().to_string())
         }
 
         pub fn turn_on(&mut self) -> Result<(), Box<dyn Error>> {
@@ -285,7 +322,6 @@ pub mod network {
     /// Умный термометр, получающий температуру по UDP в фоновом потоке
     pub struct NetworkSmartThermometer {
         receiver: mpsc::Receiver<f64>,
-        last_temperature: Option<f64>,
         _handle: thread::JoinHandle<()>,
     }
 
@@ -305,29 +341,133 @@ pub mod network {
             });
             Ok(NetworkSmartThermometer {
                 receiver: rx,
-                last_temperature: None,
                 _handle: handle,
             })
         }
 
         /// Получить последнее значение температуры (неблокирующе, с таймаутом)
         pub fn get_temperature(&mut self) -> Result<f64, Box<dyn Error>> {
-            while let Ok(temp) = self.receiver.try_recv() {
-                self.last_temperature = Some(temp);
-            }
-
-            if let Some(temp) = self.last_temperature {
-                return Ok(temp);
-            }
-
-            match self.receiver.recv_timeout(Duration::from_millis(1_100)) {
-                Ok(temp) => {
-                    self.last_temperature = Some(temp);
-                    Ok(temp)
-                }
+            // Пропускаем все накопленные значения, оставляем только последнее
+            while self.receiver.try_recv().is_ok() {}
+            match self.receiver.recv_timeout(Duration::from_millis(100)) {
+                Ok(temp) => Ok(temp),
                 Err(mpsc::RecvTimeoutError::Timeout) => Err("No temperature data received".into()),
                 Err(_) => Err("Channel closed".into()),
             }
         }
+    }
+}
+
+// ==================== НОВЫЕ МОДУЛИ (паттерны) ====================
+pub mod observer;
+pub mod report_builder;
+pub mod smart_house_builder;
+
+// ==================== ТЕСТЫ ====================
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_thermometer() {
+        let t = SmartThermometer::new(20.0);
+        assert_eq!(t.temperature(), 20.0);
+        assert_eq!(t.report(), "Термометр: температура = 20°C");
+    }
+
+    #[test]
+    fn test_socket() {
+        let mut s = SmartSocket::new(100.0);
+        assert!(!s.is_on());
+        assert_eq!(s.current_power(), 0.0);
+        s.turn_on();
+        assert!(s.is_on());
+        assert_eq!(s.current_power(), 100.0);
+        assert_eq!(s.report(), "Розетка: включена, мощность = 100 Вт");
+        s.turn_off();
+        assert_eq!(s.report(), "Розетка: выключена, мощность = 0 Вт");
+    }
+
+    #[test]
+    fn test_room_operations() {
+        let mut room = Room::new(HashMap::new());
+        room.add_device("dev1".to_string(), SmartThermometer::new(25.0).into());
+        assert!(room.get_device("dev1").is_some());
+        assert!(room.get_device("dev2").is_none());
+        let removed = room.remove_device("dev1");
+        assert!(removed.is_some());
+        assert!(room.get_device("dev1").is_none());
+    }
+
+    #[test]
+    fn test_house_operations() {
+        let mut house = SmartHouse::new(HashMap::new());
+        let room = Room::new(HashMap::new());
+        house.add_room("room1".to_string(), room);
+        assert!(house.get_room("room1").is_some());
+        assert!(house.get_room("room2").is_none());
+
+        house.remove_room("room1");
+        assert!(house.get_room("room1").is_none());
+    }
+
+    #[test]
+    fn test_get_device_result() {
+        let mut room = Room::new(HashMap::new());
+        room.add_device("socket".to_string(), SmartSocket::new(50.0).into());
+        let mut rooms = HashMap::new();
+        rooms.insert("living".to_string(), room);
+        let house = SmartHouse::new(rooms);
+
+        assert!(house.get_device("living", "socket").is_ok());
+        assert!(matches!(
+            house.get_device("living", "unknown"),
+            Err(DeviceLookupError::DeviceNotFound(_))
+        ));
+        assert!(matches!(
+            house.get_device("unknown", "socket"),
+            Err(DeviceLookupError::RoomNotFound(_))
+        ));
+    }
+
+    #[test]
+    fn test_macro() {
+        let room = room! {
+            "t" => SmartThermometer::new(30.0),
+            "s" => SmartSocket::new(200.0),
+        };
+        assert!(room.get_device("t").is_some());
+        assert!(room.get_device("s").is_some());
+        assert_eq!(room.devices().count(), 2);
+    }
+
+    #[test]
+    fn test_from_traits() {
+        let t = SmartThermometer::new(15.0);
+        let dev: SmartDevice = t.into();
+        match dev {
+            SmartDevice::Thermometer(therm) => assert_eq!(therm.temperature(), 15.0),
+            _ => panic!("wrong type"),
+        }
+
+        let s = SmartSocket::new(300.0);
+        let dev: SmartDevice = s.into();
+        match dev {
+            SmartDevice::Socket(sock) => assert!(!sock.is_on()),
+            _ => panic!("wrong type"),
+        }
+    }
+
+    #[test]
+    fn test_debug() {
+        let t = SmartThermometer::new(10.0);
+        let debug_str = format!("{:?}", t);
+        assert!(debug_str.contains("10"));
+        let s = SmartSocket::new(50.0);
+        let debug_str = format!("{:?}", s);
+        assert!(debug_str.contains("50"));
+        let room = room! {"dev" => t};
+        let debug_str = format!("{:?}", room);
+        assert!(debug_str.contains("dev"));
     }
 }

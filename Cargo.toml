@@ -16,10 +16,12 @@ path = "src/bin/demo.rs"
 
 [package]
 name = "smart_home"
-version = "0.2.0"          
-edition = "2021"           
+version = "0.2.0"
+edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
-rand = "0.10.0"
+rand = "0.10"
 crossbeam = "0.8"
+
+# Примеры не требуют дополнительных зависимостей

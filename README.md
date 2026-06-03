@@ -17,6 +17,11 @@
 - `src/bin/demo.rs` - демонстрация работы с сетевыми устройствами.
 - `thermometer.conf` - конфигурация для эмулятора термометра.
 
+Дополнительно в проекте есть примеры в `src/examples/`:
+- `report_builder_demo.rs` — демонстрация `ReportBuilder`.
+- `observer_demo.rs` — демонстрация паттерна наблюдателя (`ObservableRoom`).
+- `builder_demo.rs` — демонстрация `SmartHouseBuilder`.
+
 ## Как запустить демонстрацию
 
 Откройте три терминала в корне проекта.
@@ -63,3 +68,15 @@ cargo clippy
 ```bash
 cargo fmt --check
 ```
+
+## Запуск примеров
+
+Запустить примеры можно через `cargo run --example` из корня проекта, например:
+
+```bash
+cargo run --example report_builder_demo
+cargo run --example observer_demo
+cargo run --example builder_demo
+```
+
+Примечание: метод `ReportBuilder::add` был переименован в `add_report`. При использовании старого имени может возникнуть несовместимость в примерах.

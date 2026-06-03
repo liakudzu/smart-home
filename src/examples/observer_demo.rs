@@ -7,14 +7,14 @@ fn main() {
 
     // Регистрация замыкания в качестве наблюдателя.
     room.register_callback(|name, device| {
-        println!("[Callback] New device added: '{}' - {}", name, device.report());
+        println!("[Callback] Добавлено новое устройство: '{}' - {}", name, device.report());
     });
 
     // Регистрация структуры, реализующей трейт Observer.
     struct Logger;
     impl smart_home::observer::Observer for Logger {
-        fn update(&self, name: &str, device: &SmartDevice) {
-            println!("[Logger] Device '{}' added: {}", name, device.report());
+            fn update(&self, name: &str, device: &SmartDevice) {
+            println!("[Логгер] Устройство '{}' добавлено: {}", name, device.report());
         }
     }
     room.register_observer(Box::new(Logger));

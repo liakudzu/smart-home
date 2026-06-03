@@ -47,7 +47,7 @@ impl SmartHouseBuilder<HasRooms> {
             if let Some(room) = self.rooms.get_mut(room_name) {
                 room.add_device(device_name, device);
             } else {
-                eprintln!("Error: Could not find room '{}'", room_name);
+                eprintln!("Ошибка: не удалось найти комнату '{}'", room_name);
             }
         }
         self

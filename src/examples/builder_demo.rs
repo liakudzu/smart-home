@@ -14,6 +14,6 @@ fn main() {
         .add_device("Lamp", SmartSocket::new(75.0).into())
         .build();
 
-    println!("Builder Demo:");
+    println!("Демонстрация билдера умного дома:");
     println!("{}", house.report());
 }

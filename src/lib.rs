@@ -295,7 +295,7 @@ pub mod network {
             if resp == "OK" {
                 Ok(())
             } else {
-                Err("invalid response".into())
+                Err("некорректный ответ".into())
             }
         }
 
@@ -304,7 +304,7 @@ pub mod network {
             if resp == "OK" {
                 Ok(())
             } else {
-                Err("invalid response".into())
+                Err("некорректный ответ".into())
             }
         }
 
@@ -351,8 +351,10 @@ pub mod network {
             while self.receiver.try_recv().is_ok() {}
             match self.receiver.recv_timeout(Duration::from_millis(100)) {
                 Ok(temp) => Ok(temp),
-                Err(mpsc::RecvTimeoutError::Timeout) => Err("No temperature data received".into()),
-                Err(_) => Err("Channel closed".into()),
+                Err(mpsc::RecvTimeoutError::Timeout) => {
+                    Err("Данные о температуре не получены".into())
+                }
+                Err(_) => Err("Канал закрыт".into()),
             }
         }
     }

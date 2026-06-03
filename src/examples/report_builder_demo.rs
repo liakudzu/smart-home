@@ -20,6 +20,6 @@ fn main() {
         .add_report(&room1)
         .add_report(&room2);
 
-    println!("Report Builder Demo:");
+    println!("Демонстрация сборщика отчётов:");
     reporter.report();
 }

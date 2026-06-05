@@ -1,4 +1,4 @@
-use smart_home::{report_builder::ReportBuilder, SmartThermometer, SmartSocket, Room, SmartDevice, room};
+use smart_home::{report_builder::ReportBuilder, SmartThermometer, SmartSocket, SmartDevice, room};
 
 fn main() {
     let thermo1 = SmartThermometer::new(20.0);
@@ -7,11 +7,11 @@ fn main() {
     let socket2 = SmartSocket::new(200.0);
     let room1 = room! {
         "device1" => SmartDevice::Thermometer(thermo1.clone()),
-        "device2" => SmartDevice::Socket(socket1),
+        "device2" => SmartDevice::Socket(socket1.clone()),
     };
     let room2 = room! {
         "device3" => SmartDevice::Thermometer(thermo2),
-        "device4" => SmartDevice::Socket(socket2),
+        "device4" => SmartDevice::Socket(socket2.clone()),
     };
 
     let reporter = ReportBuilder::new()

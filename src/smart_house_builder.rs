@@ -53,6 +53,16 @@ impl SmartHouseBuilder<HasRooms> {
         self
     }
 
+    /// Добавляет новую комнату и возвращает билдер в состоянии `HasRooms`.
+    /// Позволяет вызывать `add_room` несколько раз подряд.
+    pub fn add_room(mut self, name: impl Into<String>) -> Self {
+        let name = name.into();
+        let new_room = Room::new(std::collections::HashMap::new());
+        self.rooms.insert(name.clone(), new_room);
+        self.current_room = Some(name);
+        self
+    }
+
     /// Завершает сборку и возвращает готовый объект `SmartHouse`.
     pub fn build(self) -> SmartHouse {
         SmartHouse::new(self.rooms)

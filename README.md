@@ -17,7 +17,7 @@
 - `src/bin/demo.rs` - демонстрация работы с сетевыми устройствами.
 - `thermometer.conf` - конфигурация для эмулятора термометра.
 
-Дополнительно в проекте есть примеры в `src/examples/`:
+Дополнительно в проекте есть примеры в `examples/`:
 - `report_builder_demo.rs` — демонстрация `ReportBuilder`.
 - `observer_demo.rs` — демонстрация паттерна наблюдателя (`ObservableRoom`).
 - `builder_demo.rs` — демонстрация `SmartHouseBuilder`.
@@ -37,6 +37,14 @@ cargo run --bin socket_emulator -- 127.0.0.1:1234 150.0
 ```bash
 cargo run --bin thermometer_emulator
 ```
+
+Важно: `thermometer_emulator` читает файл `thermometer.conf` из текущей рабочей директории, поэтому запускайте его из корня проекта (там же находится `thermometer.conf`). Если файла нет, создайте `thermometer.conf` с двумя строками:
+
+```
+127.0.0.1:8888
+1000
+```
+Первая строка — адрес, на который эмулятор будет отправлять UDP-пакеты, вторая — период в миллисекундах.
 
 Терминал 3:
 

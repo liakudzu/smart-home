@@ -1,5 +1,5 @@
 use smart_home::observer::ObservableRoom;
-use smart_home::{SmartThermometer, SmartSocket, SmartDevice};
+use smart_home::{SmartThermometer, SmartSocket, SmartDevice, Report};
 use std::collections::HashMap;
 
 fn main() {

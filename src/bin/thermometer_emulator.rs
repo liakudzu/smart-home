@@ -25,17 +25,19 @@ async fn main() -> anyhow::Result<()> {
 
     let socket = UdpSocket::bind("0.0.0.0:0").await?;
 
-    let mut seed = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos() as u64;
+    // Если системное время раньше эпохи (маловероятно на обычных платформах),
+    // `duration_since` вернёт ошибку — в этом случае используем 0 как fallback.
+    let mut seed = match SystemTime::now().duration_since(UNIX_EPOCH) {
+        Ok(dur) => dur.as_nanos() as u64,
+        Err(_) => 0,
+    };
     println!(
         "Thermometer emulator started. Sending to {} every {} ms",
         target_addr, period_ms
     );
 
     loop {
-        // simple LCG for emulator randomness
+        // простой LCG для генерации псевдослучайных чисел в эмуляторе
         seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
         let frac = seed as f64 / u64::MAX as f64;
         let temp = -30.0 + frac * 60.0;

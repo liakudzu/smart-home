@@ -45,7 +45,16 @@ impl ObservableRoom {
 
     /// Регистрирует нового наблюдателя (реализующего трейт `Observer`).
     pub fn register_observer(&mut self, observer: Box<dyn Observer>) {
-        self.observers.lock().unwrap().push(observer);
+        // При взаимодействии с `Mutex` возможна ситуация — блокировка может
+        // быть отравлена (poisoned), если поток паниковал, удерживая её.
+        // В таком случае разумно восстановить доступ к данным через `into_inner()`.
+        match self.observers.lock() {
+            Ok(mut guard) => guard.push(observer),
+            Err(poisoned) => {
+                let mut guard = poisoned.into_inner();
+                guard.push(observer);
+            }
+        }
     }
 
     /// Регистрирует замыкание в качестве наблюдателя.
@@ -58,9 +67,19 @@ impl ObservableRoom {
 
     /// Уведомляет всех зарегистрированных наблюдателей.
     fn notify_observers(&self, device_name: &str, device: &SmartDevice) {
-        let observers = self.observers.lock().unwrap();
-        for observer in observers.iter() {
-            observer.update(device_name, device);
+        // Аналогично, безопасно обходим возможную отравленную блокировку.
+        match self.observers.lock() {
+            Ok(guard) => {
+                for observer in guard.iter() {
+                    observer.update(device_name, device);
+                }
+            }
+            Err(poisoned) => {
+                let guard = poisoned.into_inner();
+                for observer in guard.iter() {
+                    observer.update(device_name, device);
+                }
+            }
         }
     }
 }

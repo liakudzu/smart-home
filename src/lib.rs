@@ -381,7 +381,7 @@ pub mod network {
         fn drop(&mut self) {
             self.stop_flag
                 .store(true, std::sync::atomic::Ordering::Relaxed);
-            // try join the thread (best-effort)
+            // Попытаться присоединить поток (по возможности, best-effort)
             let old = std::mem::replace(&mut self._handle, std::thread::spawn(|| {}));
             let _ = old.join();
         }

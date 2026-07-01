@@ -131,15 +131,16 @@ cargo run --bin demo
 Статическая линковка:
 
 ```bash
-cargo run --bin static_app
+cargo run -p static_app
 ```
 
-Динамическая загрузка (предварительно соберите `.so`):
+Динамическая загрузка:
 
 ```bash
-cargo build -p smart_socket_ffi
-cargo run --bin dynamic_app
+cargo run -p dynamic_app
 ```
+
+> Примечание: для workspace-пакетов используется `-p <package>`, а не `--bin`.
 
 ---
 

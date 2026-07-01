@@ -1,3 +1,11 @@
+[workspace]
+resolver = "2"
+members = [
+    "smart_socket_ffi",
+    "static_app",
+    "dynamic_app",
+]
+
 [[bin]]
 name = "smart_home"
 path = "src/main.rs"

@@ -1,4 +1,4 @@
-use smart_home::{report_builder::ReportBuilder, SmartThermometer, SmartSocket, SmartDevice, room};
+use smart_home::{report_builder::ReportBuilder, room, SmartDevice, SmartSocket, SmartThermometer};
 
 fn main() {
     let thermo1 = SmartThermometer::new(20.0);

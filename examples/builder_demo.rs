@@ -1,4 +1,4 @@
-use smart_home::{smart_house_builder::SmartHouseBuilder, SmartThermometer, SmartSocket, Report};
+use smart_home::{smart_house_builder::SmartHouseBuilder, Report, SmartSocket, SmartThermometer};
 
 fn main() {
     // Попытка добавить устройство без комнаты приведёт к ошибке компиляции:

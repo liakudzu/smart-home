@@ -18,13 +18,16 @@ jobs:
           rustup component add rustfmt clippy || true
 
       - name: fmt check
-        run: cargo fmt -- --check
+        run: cargo fmt --all -- --check
 
       - name: clippy
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --workspace -- -D warnings
 
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test --workspace --verbose
 
       - name: Build examples
         run: cargo build --examples --verbose
+
+      - name: Build workspace apps
+        run: cargo build --workspace --verbose

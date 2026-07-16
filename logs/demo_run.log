@@ -1,0 +1,25 @@
+[network][tcp] sent='ON' resp='OK'
+[network][udp] recv='18.23'
+[network][tcp] sent='POWER' resp='150'
+Socket turned on. Power: 150 W
+[network][udp] recv='4.55'
+Current temperature: 4.55°C
+
+=== Состояние дома ===
+[network][tcp] sent='STATE' resp='ON'
+Розетка: включена
+[network][tcp] sent='POWER' resp='150'
+Мощность: 150 Вт
+[network][udp] recv='16.90'
+Термометр: 16.90°C
+[network][tcp] sent='OFF' resp='OK'
+
+--- Розетка выключена ---
+[network][tcp] sent='STATE' resp='OFF'
+Розетка: выключена
+[network][tcp] sent='POWER' resp='0'
+Мощность: 0 Вт
+
+--- Проверка обработки ошибок ---
+[network][udp] recv='-13.06'
+Температура получена: -13.06

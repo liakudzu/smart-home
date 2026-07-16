@@ -1,0 +1,214 @@
+# smart_home
+
+Небольшой учебный Rust-проект про "умный дом".
+
+Проект содержит:
+- библиотеку с моделями устройств и дома;
+- TCP-эмулятор умной розетки;
+- UDP-эмулятор термометра;
+- демонстрационный бинарник, который подключается к эмуляторам и показывает текущее состояние устройств;
+- библиотеку умной розетки с C-совместимым ABI и приложения для статической и динамической линковки;
+- gRPC backend и веб-frontend для управления умным домом.
+
+---
+
+## Workspace
+
+Проект организован как **workspace** из следующих пакетов:
+
+| Пакет | Описание |
+|---|---|
+| `smart_home` | Основная библиотека с моделями `SmartHouse`, `Room`, `SmartSocket`, `SmartThermometer`, сетевыми устройствами (`network`), а также бинарники (эмуляторы, демо, `src/main.rs`) |
+| `smart_socket_ffi` | Библиотека умной розетки с C-совместимым ABI (`#[no_mangle] extern "C"`) |
+| `static_app` | Приложение, использующее `smart_socket_ffi` со статической линковкой |
+| `dynamic_app` | Приложение, загружающее `smart_socket_ffi` динамически в runtime через `dlopen`/`dlsym` |
+| `smart_home_proto` | Protobuf/gRPC контракт (`SmartHome` service) |
+| `smart_home_server` | gRPC backend на tonic |
+| `smart_home_frontend` | Веб-UI; с backend общается только через gRPC-клиент |
+
+---
+
+## Состав проекта
+
+### Основной пакет `smart_home`
+
+- `src/lib.rs` — библиотека с типами `SmartHouse`, `Room`, `SmartSocket`, `SmartThermometer`, сетевыми устройствами в модуле `network`, паттернами `observer`, `report_builder`, `smart_house_builder`.
+- `src/main.rs` — локальная демонстрация базовой модели умного дома.
+- `src/bin/socket_emulator.rs` — TCP-эмулятор розетки.
+- `src/bin/thermometer_emulator.rs` — UDP-эмулятор термометра.
+- `src/bin/demo.rs` — демонстрация работы с сетевыми устройствами.
+- `thermometer.conf` — конфигурация для эмулятора термометра.
+
+Примеры в `examples/`:
+- `report_builder_demo.rs` — демонстрация `ReportBuilder`.
+- `observer_demo.rs` — демонстрация паттерна наблюдателя (`ObservableRoom`).
+- `builder_demo.rs` — демонстрация `SmartHouseBuilder`.
+
+### Си-style умная розетка (`smart_socket_ffi`)
+
+Библиотека предоставляет C-совместимый интерфейс для управления розеткой.
+При сборке создаёт три артефакта:
+- Rust-библиотека (rlib)
+- Статическая библиотека `.a` с C ABI
+- Динамическая библиотека `.so` с C ABI
+
+**API библиотеки:**
+
+| Функция | Описание |
+|---|---|
+| `smart_socket_create(power) -> *mut c_void` | Создать новую розетку |
+| `smart_socket_destroy(socket)` | Уничтожить розетку |
+| `smart_socket_turn_on(socket)` | Включить розетку |
+| `smart_socket_turn_off(socket)` | Выключить розетку |
+| `smart_socket_is_on(socket) -> bool` | Проверить, включена ли |
+| `smart_socket_current_power(socket) -> f64` | Получить текущую мощность |
+
+### Приложения
+
+- **`static_app`** — статическая линковка: подключает `smart_socket_ffi` напрямую как Rust-зависимость. Все функции доступны на этапе компиляции.
+- **`dynamic_app`** — динамическая загрузка: открывает `libsmart_socket_ffi.so` через `dlopen`, ищет функции через `dlsym` и вызывает их по указателям.
+
+### Веб-сервис (gRPC)
+
+Backend (`smart_home_server`) предоставляет gRPC API ко всему базовому функционалу библиотеки:
+- комнаты: добавить / удалить / перечислить / получить;
+- устройства в комнате: добавить / удалить / перечислить / получить;
+- отчёт о доме.
+
+Frontend (`smart_home_frontend`) — веб-приложение: список комнат, переход в комнату, устройства, отчёт. HTTP-слой UI проксирует действия в gRPC backend.
+
+Запуск (два терминала):
+
+```bash
+# Терминал 1 — gRPC backend (по умолчанию 127.0.0.1:50051)
+cargo run -p smart_home_server
+
+# Терминал 2 — веб-UI (по умолчанию http://127.0.0.1:3000)
+cargo run -p smart_home_frontend
+```
+
+Переменные окружения:
+- `SMART_HOME_GRPC_ADDR` — адрес сервера (`127.0.0.1:50051` для backend; `http://127.0.0.1:50051` для frontend);
+- `SMART_HOME_HTTP_ADDR` — адрес HTTP UI frontend (`127.0.0.1:3000`).
+
+Функциональные тесты backend:
+
+```bash
+cargo test -p smart_home_server
+```
+
+---
+
+## Сборка всего проекта
+
+```bash
+# Собрать весь workspace
+cargo build --workspace
+
+# Проверить код
+cargo check --workspace
+
+# Запустить тесты всех пакетов
+cargo test --workspace
+
+# Проверить форматирование
+cargo fmt --all -- --check
+
+# Проверить lint
+cargo clippy --workspace -- -D warnings
+```
+
+---
+
+## Как запустить демонстрацию
+
+### Проверка в реальном времени (три терминала)
+
+Запустите три терминала в корне проекта, чтобы увидеть взаимодействие `demo` с эмуляторами в реальном времени.
+
+**Терминал 1 — TCP-эмулятор розетки:**
+
+```bash
+cargo run --bin socket_emulator -- 127.0.0.1:1234 150.0
+```
+
+**Терминал 2 — UDP-эмулятор термометра:**
+
+```bash
+cargo run --bin thermometer_emulator
+```
+
+Важно: `thermometer_emulator` читает файл `thermometer.conf` из текущей рабочей директории. Если файла нет, создайте его с двумя строками:
+
+```
+127.0.0.1:8888
+1000
+```
+(адрес для отправки и период в миллисекундах)
+
+**Терминал 3 — демонстрация:**
+
+```bash
+cargo run --bin demo
+```
+
+Ожидаемое поведение:
+- `socket_emulator` слушает `127.0.0.1:1234` и отвечает на команды ON/OFF/STATE/POWER;
+- `thermometer_emulator` отправляет температуру на `127.0.0.1:8888` каждую секунду;
+- `demo` подключается к обоим эмуляторам, включает/выключает розетку и выводит температуру.
+
+> Убедитесь, что адреса в `thermometer.conf` и аргументах `socket_emulator` совпадают с ожидаемыми в `src/bin/demo.rs`.
+
+### Си-style умная розетка
+
+Статическая линковка:
+
+```bash
+cargo run -p static_app
+```
+
+Динамическая загрузка:
+
+```bash
+cargo run -p dynamic_app
+```
+
+> Примечание: для workspace-пакетов используется `-p <package>`, а не `--bin`.
+
+---
+
+## Запуск примеров
+
+```bash
+cargo run --example report_builder_demo
+cargo run --example observer_demo
+cargo run --example builder_demo
+```
+
+---
+
+## Пример: билдер `SmartHouseBuilder`
+
+Ниже небольшой пример использования типестейт-билдера для пошаговой сборки `SmartHouse`.
+
+```rust
+use smart_home::{
+    smart_house_builder::SmartHouseBuilder,
+    SmartDevice, SmartSocket, SmartThermometer,
+};
+
+let house = SmartHouseBuilder::new()
+    .add_room("Living Room")
+    .add_device("Main Socket", SmartSocket::new(150.0).into())
+    .add_device("Thermometer", SmartThermometer::new(22.5).into())
+    .add_room("Bedroom")
+    .add_device("Lamp", SmartSocket::new(75.0).into())
+    .build();
+
+println!("{}", house.report());
+```
+
+Коротко о механике:
+- Билдер параметризован состоянием (`NoRoomsYet` / `HasRooms`) — это предотвращает вызов `add_device` до того, как добавлена хотя бы одна комната.
+- Метод `add_room` переводит билдер в состояние `HasRooms` и возвращает билдер с возможностью добавлять устройства.
+- `add_device` добавляет устройство в последнюю добавленную комнату (`current_room`).

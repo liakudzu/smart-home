@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Умный дом</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="header">
+        <div>
+          <p class="eyebrow">Smart Home</p>
+          <h1>Умный дом</h1>
+          <p class="subtitle">Управление комнатами и устройствами через gRPC backend</p>
+        </div>
+        <button id="report-btn" class="btn secondary" type="button">Отчёт о доме</button>
+      </header>
+
+      <main class="layout">
+        <section class="panel" id="rooms-panel">
+          <div class="panel-head">
+            <h2>Комнаты</h2>
+          </div>
+          <form id="add-room-form" class="inline-form">
+            <input
+              id="room-name"
+              name="name"
+              type="text"
+              placeholder="Название комнаты"
+              required
+              autocomplete="off"
+            />
+            <button class="btn" type="submit">Добавить</button>
+          </form>
+          <ul id="rooms-list" class="list"></ul>
+        </section>
+
+        <section class="panel hidden" id="room-panel">
+          <div class="panel-head">
+            <button id="back-btn" class="btn ghost" type="button">← К комнатам</button>
+            <h2 id="room-title">Комната</h2>
+          </div>
+          <form id="add-device-form" class="stack-form">
+            <div class="row">
+              <input
+                id="device-name"
+                name="name"
+                type="text"
+                placeholder="Имя устройства"
+                required
+                autocomplete="off"
+              />
+              <select id="device-type" name="device_type">
+                <option value="socket">Розетка</option>
+                <option value="thermometer">Термометр</option>
+              </select>
+            </div>
+            <div class="row" id="socket-fields">
+              <label>
+                Мощность, Вт
+                <input id="power-when-on" type="number" step="0.1" value="100" />
+              </label>
+            </div>
+            <div class="row hidden" id="thermometer-fields">
+              <label>
+                Температура, °C
+                <input id="temperature" type="number" step="0.1" value="22" />
+              </label>
+            </div>
+            <button class="btn" type="submit">Добавить устройство</button>
+          </form>
+          <ul id="devices-list" class="list"></ul>
+        </section>
+
+        <section class="panel hidden" id="device-panel">
+          <div class="panel-head">
+            <button id="back-to-room-btn" class="btn ghost" type="button">← К комнате</button>
+            <h2 id="device-title">Устройство</h2>
+          </div>
+          <pre id="device-details" class="details"></pre>
+          <button id="delete-device-btn" class="btn danger" type="button">Удалить устройство</button>
+        </section>
+      </main>
+
+      <dialog id="report-dialog">
+        <form method="dialog" class="dialog-body">
+          <h2>Отчёт о состоянии дома</h2>
+          <pre id="report-text" class="details"></pre>
+          <button class="btn" value="close">Закрыть</button>
+        </form>
+      </dialog>
+
+      <p id="error" class="error" hidden></p>
+    </div>
+    <script src="/static/js/app.js"></script>
+  </body>
+</html>

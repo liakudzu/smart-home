@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+package smart_home;
+
+service SmartHome {
+  // Комнаты
+  rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);
+  rpc GetRoom(GetRoomRequest) returns (Room);
+  rpc AddRoom(AddRoomRequest) returns (Room);
+  rpc RemoveRoom(RemoveRoomRequest) returns (RemoveRoomResponse);
+
+  // Устройства
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
+  rpc GetDevice(GetDeviceRequest) returns (Device);
+  rpc AddDevice(AddDeviceRequest) returns (Device);
+  rpc RemoveDevice(RemoveDeviceRequest) returns (RemoveDeviceResponse);
+
+  // Отчёт
+  rpc GetReport(GetReportRequest) returns (GetReportResponse);
+}
+
+message ListRoomsRequest {}
+
+message ListRoomsResponse {
+  repeated Room rooms = 1;
+}
+
+message GetRoomRequest {
+  string name = 1;
+}
+
+message AddRoomRequest {
+  string name = 1;
+}
+
+message RemoveRoomRequest {
+  string name = 1;
+}
+
+message RemoveRoomResponse {}
+
+message Room {
+  string name = 1;
+  repeated string device_names = 2;
+}
+
+message ListDevicesRequest {
+  string room_name = 1;
+}
+
+message ListDevicesResponse {
+  repeated Device devices = 1;
+}
+
+message GetDeviceRequest {
+  string room_name = 1;
+  string device_name = 2;
+}
+
+message AddDeviceRequest {
+  string room_name = 1;
+  string device_name = 2;
+  DeviceType device_type = 3;
+  double temperature = 4;
+  double power_when_on = 5;
+}
+
+message RemoveDeviceRequest {
+  string room_name = 1;
+  string device_name = 2;
+}
+
+message RemoveDeviceResponse {}
+
+enum DeviceType {
+  DEVICE_TYPE_UNSPECIFIED = 0;
+  DEVICE_TYPE_THERMOMETER = 1;
+  DEVICE_TYPE_SOCKET = 2;
+}
+
+message Device {
+  string name = 1;
+  DeviceType device_type = 2;
+  oneof details {
+    ThermometerDetails thermometer = 3;
+    SocketDetails socket = 4;
+  }
+}
+
+message ThermometerDetails {
+  double temperature = 1;
+}
+
+message SocketDetails {
+  bool enabled = 1;
+  double current_power = 2;
+  double power_when_on = 3;
+}
+
+message GetReportRequest {}
+
+message GetReportResponse {
+  string report = 1;
+}

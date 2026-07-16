@@ -4,6 +4,9 @@ members = [
     "smart_socket_ffi",
     "static_app",
     "dynamic_app",
+    "smart_home_proto",
+    "smart_home_server",
+    "smart_home_frontend",
 ]
 
 [[bin]]

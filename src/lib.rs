@@ -65,6 +65,11 @@ impl SmartSocket {
             0.0
         }
     }
+
+    /// Номинальная мощность розетки во включённом состоянии.
+    pub fn power_when_on(&self) -> f64 {
+        self.power_when_on
+    }
 }
 
 impl Report for SmartSocket {
@@ -203,6 +208,11 @@ impl SmartHouse {
     // Удалить комнату
     pub fn remove_room(&mut self, name: &str) -> Option<Room> {
         self.rooms.remove(name)
+    }
+
+    /// Итератор по комнатам дома `(имя, комната)`.
+    pub fn rooms(&self) -> impl Iterator<Item = (&String, &Room)> {
+        self.rooms.iter()
     }
 
     // Получить ссылку на устройство по имени комнаты и имени устройства
